@@ -1,0 +1,25 @@
+{
+  "name": "બ્રેકઆઉટ સહાયક",
+  "short_name": "બ્રેકઆઉટ",
+  "description": "ચાર્ટ ડેટા પરથી બ્રેક-અપ કે બ્રેક-ડાઉનનો સંકેત",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#12161B",
+  "theme_color": "#12161B",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

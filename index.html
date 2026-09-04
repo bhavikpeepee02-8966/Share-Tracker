@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>બ્રેકઆઉટ સહાયક</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#12161B">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12161B;
+    --surface:#1A1F26;
+    --surface-2:#20262E;
+    --border:#2B323C;
+    --text:#E7EAEE;
+    --text-muted:#8B93A1;
+    --accent:#4FA8A0;
+    --accent-dim:#2E5C58;
+    --bull:#4FAF7C;
+    --bull-dim:#1E3A2C;
+    --bear:#D9695F;
+    --bear-dim:#3D2523;
+    --warn:#D9A05B;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Noto Sans Gujarati','Noto Sans',sans-serif;
+    line-height:1.5;
+    padding-bottom:40px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  header{
+    padding:22px 18px 16px;
+    border-bottom:1px solid var(--border);
+    position:sticky; top:0; background:var(--bg); z-index:5;
+  }
+  header h1{
+    margin:0 0 2px;
+    font-size:1.28rem;
+    font-weight:700;
+    letter-spacing:.2px;
+  }
+  header p{
+    margin:0;
+    color:var(--text-muted);
+    font-size:.85rem;
+  }
+  main{max-width:640px; margin:0 auto; padding:0 14px;}
+  section{margin-top:22px;}
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:16px;
+  }
+  h2{
+    font-size:.98rem;
+    font-weight:600;
+    margin:0 0 12px;
+    color:var(--text);
+  }
+  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+  select, input, textarea, button{
+    font-family:inherit;
+    font-size:.92rem;
+    background:var(--surface-2);
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:5px;
+    padding:9px 10px;
+  }
+  select{flex:1; min-width:120px;}
+  input[type=file]{
+    flex:1; min-width:160px; color:var(--text-muted); font-size:.8rem;
+  }
+  input[type=file]::file-selector-button{
+    font-family:inherit; font-size:.85rem; cursor:pointer;
+    background:var(--accent-dim); color:var(--text); border:1px solid var(--accent);
+    border-radius:5px; padding:8px 12px; margin-right:10px;
+  }
+  input[type=text]{flex:1; min-width:120px;}
+  button{
+    cursor:pointer;
+    background:var(--accent-dim);
+    border-color:var(--accent);
+    color:var(--text);
+    font-weight:500;
+    transition:filter .15s;
+  }
+  button:hover{filter:brightness(1.15);}
+  button.ghost{background:transparent; border-color:var(--border); color:var(--text-muted);}
+  button.danger{background:var(--bear-dim); border-color:var(--bear);}
+  button:active{transform:translateY(1px);}
+  .field-label{
+    font-size:.78rem; color:var(--text-muted); margin-bottom:5px; display:block;
+  }
+  textarea{width:100%; min-height:78px; resize:vertical; font-family:'JetBrains Mono',monospace; font-size:.82rem;}
+  .hint{font-size:.76rem; color:var(--text-muted); margin-top:6px;}
+  table{width:100%; border-collapse:collapse; margin-top:14px; font-size:.82rem;}
+  th,td{padding:6px 5px; text-align:right; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',monospace;}
+  th:first-child,td:first-child{text-align:left; font-family:'Noto Sans Gujarati',sans-serif;}
+  th{color:var(--text-muted); font-weight:500; font-size:.72rem;}
+  td.del{text-align:center; font-family:inherit;}
+  td.del span{color:var(--bear); cursor:pointer; font-size:1rem;}
+  tr:last-child td{border-bottom:none;}
+  canvas{width:100%; display:block; background:var(--surface-2); border-radius:5px;}
+  .verdict{
+    border-radius:6px;
+    padding:18px 16px;
+    border:1px solid var(--border);
+  }
+  .verdict.bull{background:var(--bull-dim); border-color:var(--bull);}
+  .verdict.bear{background:var(--bear-dim); border-color:var(--bear);}
+  .verdict.neutral{background:var(--surface-2); border-color:var(--border);}
+  .verdict .headline{
+    font-size:1.12rem; font-weight:700; margin-bottom:3px;
+  }
+  .verdict.bull .headline{color:var(--bull);}
+  .verdict.bear .headline{color:var(--bear);}
+  .verdict .confidence{font-size:.8rem; color:var(--text-muted); margin-bottom:12px;}
+  .factor{
+    display:flex; justify-content:space-between; gap:10px;
+    padding:6px 0; border-top:1px solid rgba(255,255,255,.06);
+    font-size:.84rem;
+  }
+  .factor:first-of-type{border-top:none;}
+  .factor .val{font-family:'JetBrains Mono',monospace; white-space:nowrap;}
+  .val.pos{color:var(--bull);}
+  .val.neg{color:var(--bear);}
+  .val.flat{color:var(--text-muted);}
+  .stats-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; margin-top:14px;
+  }
+  .stat{font-size:.8rem;}
+  .stat .k{color:var(--text-muted); display:block; font-size:.72rem; margin-bottom:2px;}
+  .stat .v{font-family:'JetBrains Mono',monospace; font-size:.95rem;}
+  details{border:1px solid var(--border); border-radius:6px; background:var(--surface);}
+  details summary{
+    padding:14px 16px; cursor:pointer; font-weight:600; font-size:.92rem;
+    list-style:none;
+  }
+  details summary::-webkit-details-marker{display:none;}
+  details summary::after{content:'+'; float:left; margin-inline-end:10px; color:var(--accent); font-weight:700;}
+  details[open] summary::after{content:'−';}
+  .edu{padding:0 16px 16px; font-size:.85rem; color:var(--text-muted);}
+  .edu p{margin:8px 0;}
+  .edu b{color:var(--text);}
+  .disclaimer{
+    font-size:.75rem; color:var(--text-muted); text-align:center; margin-top:26px; padding:0 10px;
+  }
+  .empty{color:var(--text-muted); font-size:.85rem; text-align:center; padding:20px 0;}
+  .explain-text{
+    font-size:.88rem; color:var(--text); line-height:1.7; margin:0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>બ્રેકઆઉટ સહાયક</h1>
+  <p>ચાર્ટ ડેટા પરથી બ્રેક-અપ કે બ્રેક-ડાઉનનો સંકેત</p>
+</header>
+
+<main>
+
+  <section class="panel">
+    <h2>શેર પસંદ કરો</h2>
+    <div class="row">
+      <select id="symbolSelect"></select>
+      <button id="deleteSymbolBtn" class="danger">ડિલીટ</button>
+    </div>
+    <p class="hint" id="priceBadge" style="margin-top:10px; font-size:.9rem;"></p>
+  </section>
+
+  <section class="panel">
+    <h2>CSV ફાઈલ અપલોડ કરો</h2>
+    <span class="field-label">NSE.com પરથી ડાઉનલોડ કરેલી ફાઈલ સીધી અપલોડ કરો — શેરનું નામ ફાઈલ પરથી ઓટોમેટિક ઉમેરાશે</span>
+    <div class="row">
+      <input type="file" id="csvFileInput" accept=".csv,text/csv">
+    </div>
+    <p class="hint" id="csvHint">રોજ નવી ફાઈલ ડાઉનલોડ કરીને અહીં અપલોડ કરો — જૂનો ડેટા સચવાયેલો રહેશે, નવો દિવસ ઉમેરાઈ જશે.</p>
+    <div class="row" style="margin-top:10px;">
+      <button id="clearDataBtn" class="danger">આ શેરનો ડેટા સાફ કરો</button>
+    </div>
+
+    <div id="tableWrap"></div>
+  </section>
+  </section>
+
+  <section class="panel" id="chartSection" style="display:none;">
+    <h2>ચાર્ટ</h2>
+    <canvas id="chartCanvas" height="260"></canvas>
+    <div class="row" style="margin-top:10px; font-size:.74rem; color:var(--text-muted);">
+      <span>▬ ભાવ (MA5 / MA20)</span>
+      <span style="color:var(--warn);">┈ રેઝિસ્ટન્સ / સપોર્ટ</span>
+    </div>
+  </section>
+
+  <section id="verdictSection" style="display:none;">
+    <h2>સંકેત</h2>
+    <div class="verdict" id="verdictBox">
+      <div class="headline" id="verdictHeadline"></div>
+      <div class="confidence" id="verdictConfidence"></div>
+      <div id="verdictFactors"></div>
+    </div>
+    <div class="panel" style="margin-top:12px;">
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+    <div class="panel" style="margin-top:12px;">
+      <h2>સ્તર સંદર્ભ (Reference Levels)</h2>
+      <div class="stats-grid" id="levelsGrid"></div>
+      <p class="hint" style="margin-top:10px;">આ નંબરો ફક્ત તમારા ડેટા પરથી ગણેલા સંદર્ભ છે — ખરીદ/વેચાણની સલાહ નથી. પોતાનું જોખમ ને stop-loss જાતે નક્કી કરો.</p>
+    </div>
+    <div class="panel" style="margin-top:12px;">
+      <h2>સમજૂતી</h2>
+      <div id="explainText" class="explain-text"></div>
+    </div>
+  </section>
+
+  <section>
+    <details>
+      <summary>બ્રેક-અપ અને બ્રેક-ડાઉન કેવી રીતે ઓળખવું?</summary>
+      <div class="edu">
+        <p><b>રેઝિસ્ટન્સ અને સપોર્ટ:</b> છેલ્લા થોડા દિવસોની સૌથી ઊંચી કિંમત રેઝિસ્ટન્સ અને સૌથી નીચી કિંમત સપોર્ટ ગણાય. ભાવ રેઝિસ્ટન્સથી ઉપર બંધ થાય તો બ્રેક-અપ, અને સપોર્ટથી નીચે બંધ થાય તો બ્રેક-ડાઉનની શક્યતા વધે છે.</p>
+        <p><b>વોલ્યુમ:</b> સાચો બ્રેકઆઉટ સામાન્ય રીતે સરેરાશ કરતાં વધુ વોલ્યુમ સાથે આવે છે. ઓછા વોલ્યુમમાં થયેલો બ્રેકઆઉટ ઘણીવાર ફેક (ખોટો) સાબિત થાય છે.</p>
+        <p><b>મૂવિંગ એવરેજ:</b> ટૂંકી મુદતની એવરેજ (MA5) લાંબી મુદતની એવરેજ (MA20) થી ઉપર હોય તો ટ્રેન્ડ તેજીનો ગણાય, અને ઊલટું મંદીનો.</p>
+        <p><b>RSI:</b> ૭૦ થી ઉપર RSI એટલે ઓવરબોટ (વધુ પડતું ખરીદાયેલું — રિવર્સલનું જોખમ), ૩૦ થી નીચે એટલે ઓવરસોલ્ડ.</p>
+        <p style="margin-top:14px; color:var(--text);">આ ટૂલ માત્ર તમે આપેલા ડેટા પરથી નિયમ-આધારિત ગણતરી કરે છે — તે રોકાણ સલાહ નથી. કોઈ પણ નિર્ણય પહેલાં પોતાનું સંશોધન કરો.</p>
+      </div>
+    </details>
+  </section>
+
+  <p class="disclaimer">આ એપ ફક્ત શૈક્ષણિક હેતુ માટે ટેકનિકલ એનાલિસિસ બતાવે છે. રોકાણ/ટ્રેડિંગ સલાહ નથી. બજારમાં જોખમ રહેલું છે.</p>
+
+</main>
+
+<script>
+const STORAGE_KEY = 'breakoutAnalyzerV1';
+
+function loadStore(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return { symbols:{}, active:null };
+    return JSON.parse(raw);
+  }catch(e){ return { symbols:{}, active:null }; }
+}
+function saveStore(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+}
+
+let store = loadStore();
+
+function ensureDefault(){
+  if(Object.keys(store.symbols).length === 0){
+    store.symbols['NIFTY'] = [];
+    store.active = 'NIFTY';
+    saveStore();
+  }
+  if(!store.active || !store.symbols[store.active]){
+    store.active = Object.keys(store.symbols)[0];
+  }
+}
+ensureDefault();
+
+const symbolSelect = document.getElementById('symbolSelect');
+const deleteSymbolBtn = document.getElementById('deleteSymbolBtn');
+const clearDataBtn = document.getElementById('clearDataBtn');
+const tableWrap = document.getElementById('tableWrap');
+const chartSection = document.getElementById('chartSection');
+const verdictSection = document.getElementById('verdictSection');
+const canvas = document.getElementById('chartCanvas');
+
+function renderSymbolSelect(){
+  symbolSelect.innerHTML = '';
+  Object.keys(store.symbols).forEach(sym=>{
+    const rows = store.symbols[sym] || [];
+    const opt = document.createElement('option');
+    opt.value = sym;
+    opt.textContent = rows.length ? `${sym} — ₹${fmt(rows[rows.length-1].close)}` : sym;
+    if(sym === store.active) opt.selected = true;
+    symbolSelect.appendChild(opt);
+  });
+  updatePriceBadge();
+}
+
+function updatePriceBadge(){
+  const badge = document.getElementById('priceBadge');
+  const rows = store.symbols[store.active] || [];
+  if(rows.length === 0){ badge.textContent = ''; return; }
+  const last = rows[rows.length-1];
+  badge.innerHTML = `<span class="mono" style="color:var(--text); font-size:1.05rem; font-weight:600;">₹${fmt(last.close)}</span> &nbsp; <span style="color:var(--text-muted);">(${last.date} નો ભાવ)</span>`;
+}
+
+symbolSelect.addEventListener('change', ()=>{
+  store.active = symbolSelect.value;
+  saveStore();
+  renderAll();
+});
+
+
+deleteSymbolBtn.addEventListener('click', ()=>{
+  if(!store.active) return;
+  if(!confirm(store.active + ' નો બધો ડેટા ડિલીટ કરવો છે?')) return;
+  delete store.symbols[store.active];
+  store.active = Object.keys(store.symbols)[0] || null;
+  if(!store.active){
+    store.symbols['NIFTY'] = [];
+    store.active = 'NIFTY';
+  }
+  saveStore();
+  renderSymbolSelect();
+  renderAll();
+});
+
+clearDataBtn.addEventListener('click', ()=>{
+  if(!store.active) return;
+  if(!confirm('આ શેરનો બધો ડેટા સાફ કરવો છે?')) return;
+  store.symbols[store.active] = [];
+  saveStore();
+  renderAll();
+});
+
+function mergeRows(rows){
+  const existing = store.symbols[store.active] || [];
+  const byDate = {};
+  existing.forEach(r=>byDate[r.date]=r);
+  rows.forEach(r=>byDate[r.date]=r);
+  store.symbols[store.active] = Object.values(byDate).sort((a,b)=> a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+  saveStore();
+}
+
+// ---- CSV file upload ----
+const csvFileInput = document.getElementById('csvFileInput');
+const csvHint = document.getElementById('csvHint');
+const MONTH_MAP = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+
+function parseCSVLine(line){
+  const result = [];
+  let cur = '', inQuotes = false;
+  for(let i=0;i<line.length;i++){
+    const ch = line[i];
+    if(ch === '"'){ inQuotes = !inQuotes; continue; }
+    if(ch === ',' && !inQuotes){ result.push(cur); cur=''; continue; }
+    cur += ch;
+  }
+  result.push(cur);
+  return result.map(s=>s.trim());
+}
+
+function cleanNum(s){
+  if(s === undefined || s === null) return NaN;
+  return parseFloat(String(s).replace(/,/g,'').trim());
+}
+
+function toISODate(dateStr){
+  // DD-Mon-YYYY (NSE export)
+  let m = dateStr.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+  if(m && MONTH_MAP[m[2]]) return `${m[3]}-${MONTH_MAP[m[2]]}-${m[1].padStart(2,'0')}`;
+  // DD/MM/YYYY or DD-MM-YYYY
+  m = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  // Already YYYY-MM-DD
+  m = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  return dateStr;
+}
+
+function parseCSVUpload(text){
+  const lines = text.replace(/^\uFEFF/,'').split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+  if(lines.length === 0) return [];
+
+  const headerCells = parseCSVLine(lines[0]).map(c=>c.toUpperCase());
+  const idxDate = headerCells.indexOf('DATE');
+  const idxOpen = headerCells.indexOf('OPEN');
+  const idxHigh = headerCells.indexOf('HIGH');
+  const idxLow = headerCells.indexOf('LOW');
+  const idxClose = headerCells.indexOf('CLOSE');
+  const idxVol = headerCells.indexOf('VOLUME');
+
+  const rows = [];
+
+  if(idxDate>=0 && idxOpen>=0 && idxHigh>=0 && idxLow>=0 && idxClose>=0){
+    // Header-based parsing (e.g. NSE "Quote-Equity" export, or any labeled CSV)
+    for(let i=1;i<lines.length;i++){
+      const cells = parseCSVLine(lines[i]);
+      if(cells.length <= Math.max(idxDate,idxOpen,idxHigh,idxLow,idxClose)) continue;
+      const rec = {
+        date: toISODate(cells[idxDate]),
+        open: cleanNum(cells[idxOpen]),
+        high: cleanNum(cells[idxHigh]),
+        low: cleanNum(cells[idxLow]),
+        close: cleanNum(cells[idxClose]),
+        volume: idxVol>=0 ? cleanNum(cells[idxVol]) : 0
+      };
+      if(isNaN(rec.open)||isNaN(rec.high)||isNaN(rec.low)||isNaN(rec.close)) continue;
+      if(isNaN(rec.volume)) rec.volume = 0;
+      rows.push(rec);
+    }
+  } else {
+    // No recognizable header — treat as plain date,open,high,low,close,volume rows
+    // (skip first line only if it doesn't look numeric)
+    const startIdx = /[a-zA-Z]/.test(lines[0].split(/[,\t]/)[1]||'') ? 1 : 0;
+    for(let i=startIdx;i<lines.length;i++){
+      const parts = parseCSVLine(lines[i]);
+      if(parts.length < 5) continue;
+      const rec = {
+        date: toISODate(parts[0]),
+        open: cleanNum(parts[1]), high: cleanNum(parts[2]), low: cleanNum(parts[3]), close: cleanNum(parts[4]),
+        volume: parts[5]!==undefined ? cleanNum(parts[5]) : 0
+      };
+      if(isNaN(rec.open)||isNaN(rec.high)||isNaN(rec.low)||isNaN(rec.close)) continue;
+      if(isNaN(rec.volume)) rec.volume = 0;
+      rows.push(rec);
+    }
+  }
+  return rows;
+}
+
+function deriveSymbolFromFilename(filename){
+  const base = filename.replace(/\.[^.]+$/, '');
+  // NSE export pattern: Quote-Equity-<SYMBOL>-EQ-...
+  let m = base.match(/Quote-Equity-(.+?)-EQ-/i);
+  if(m) return m[1].toUpperCase();
+  // fallback: leading letters/digits before first separator
+  m = base.match(/^([A-Za-z0-9&]+)/);
+  if(m) return m[1].toUpperCase();
+  return base.toUpperCase();
+}
+
+csvFileInput.addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const symbol = deriveSymbolFromFilename(file.name);
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    const rows = parseCSVUpload(ev.target.result);
+    if(rows.length === 0){
+      alert('CSV માંથી ડેટા વાંચી ના શકાયો. ફોર્મેટ ચેક કરો (DATE, OPEN, HIGH, LOW, CLOSE, VOLUME કોલમ જોઈએ).');
+    } else {
+      if(!store.symbols[symbol]) store.symbols[symbol] = [];
+      store.active = symbol;
+      mergeRows(rows);
+      renderSymbolSelect();
+      csvHint.textContent = `${symbol} — ${rows.length} દિવસનો ડેટા ઉમેરાયો.`;
+      renderAll();
+    }
+    csvFileInput.value = '';
+  };
+  reader.onerror = ()=>{ alert('ફાઈલ વાંચવામાં ભૂલ થઈ.'); csvFileInput.value=''; };
+  reader.readAsText(file);
+});
+
+function deleteRow(idx){
+  store.symbols[store.active].splice(idx,1);
+  saveStore();
+  renderAll();
+}
+
+function fmt(n, d=2){
+  if(n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-IN', {minimumFractionDigits:d, maximumFractionDigits:d});
+}
+
+function renderTable(){
+  const data = store.symbols[store.active] || [];
+  if(data.length === 0){
+    tableWrap.innerHTML = '<p class="empty">હજુ કોઈ ડેટા નથી. ઉપર પેસ્ટ કરીને ઉમેરો.</p>';
+    return;
+  }
+  let html = '<table><thead><tr><th>તારીખ</th><th>ઓપન</th><th>હાઈ</th><th>લો</th><th>ક્લોઝ</th><th>વોલ્યુમ</th><th></th></tr></thead><tbody>';
+  data.forEach((r,i)=>{
+    html += `<tr><td>${r.date}</td><td>${fmt(r.open)}</td><td>${fmt(r.high)}</td><td>${fmt(r.low)}</td><td>${fmt(r.close)}</td><td>${fmt(r.volume,0)}</td><td class="del"><span onclick="deleteRow(${i})">✕</span></td></tr>`;
+  });
+  html += '</tbody></table>';
+  tableWrap.innerHTML = `<details><summary>ડેટા ટેબલ જુઓ (${data.length} દિવસ)</summary>${html}</details>`;
+}
+
+function sma(values, period, endIdx){
+  if(endIdx+1 < period) return null;
+  let sum = 0;
+  for(let i=endIdx-period+1; i<=endIdx; i++) sum += values[i];
+  return sum/period;
+}
+
+function computeRSI(closes, period=14){
+  if(closes.length < period+1) return null;
+  let gains=0, losses=0;
+  for(let i=closes.length-period; i<closes.length; i++){
+    const diff = closes[i]-closes[i-1];
+    if(diff>=0) gains+=diff; else losses+=Math.abs(diff);
+  }
+  const avgGain = gains/period, avgLoss = losses/period;
+  if(avgLoss === 0) return 100;
+  const rs = avgGain/avgLoss;
+  return 100 - (100/(1+rs));
+}
+
+function analyze(){
+  const data = store.symbols[store.active] || [];
+  chartSection.style.display = data.length >= 2 ? 'block' : 'none';
+  verdictSection.style.display = data.length >= 5 ? 'block' : 'none';
+  if(data.length < 5) return;
+
+  const closes = data.map(r=>r.close);
+  const highs = data.map(r=>r.high);
+  const lows = data.map(r=>r.low);
+  const vols = data.map(r=>r.volume);
+  const n = data.length;
+  const lastIdx = n-1;
+  const last = data[lastIdx];
+
+  const lookback = Math.min(20, n-1);
+  const windowHighs = highs.slice(Math.max(0,n-1-lookback), n-1);
+  const windowLows = lows.slice(Math.max(0,n-1-lookback), n-1);
+  const resistance = windowHighs.length ? Math.max(...windowHighs) : last.high;
+  const support = windowLows.length ? Math.min(...windowLows) : last.low;
+
+  const ma5 = sma(closes,5,lastIdx);
+  const ma20 = sma(closes,20,lastIdx);
+  const ma50 = sma(closes,50,lastIdx);
+
+  const volWindow = vols.slice(Math.max(0,n-1-20), n-1);
+  const avgVol = volWindow.length ? volWindow.reduce((a,b)=>a+b,0)/volWindow.length : last.volume;
+
+  const rsi = computeRSI(closes,14);
+
+  let score = 0;
+  const factors = [];
+
+  // Price vs support/resistance
+  if(last.close > resistance){
+    score += 2;
+    factors.push({label:'ભાવ રેઝિસ્ટન્સથી ઉપર બંધ થયો', val:'+2', dir:'pos'});
+  } else if(last.close >= resistance*0.98){
+    score += 1;
+    factors.push({label:'ભાવ રેઝિસ્ટન્સની નજીક', val:'+1', dir:'pos'});
+  } else if(last.close < support){
+    score -= 2;
+    factors.push({label:'ભાવ સપોર્ટથી નીચે બંધ થયો', val:'-2', dir:'neg'});
+  } else if(last.close <= support*1.02){
+    score -= 1;
+    factors.push({label:'ભાવ સપોર્ટની નજીક', val:'-1', dir:'neg'});
+  } else {
+    factors.push({label:'ભાવ સપોર્ટ-રેઝિસ્ટન્સ વચ્ચે', val:'0', dir:'flat'});
+  }
+
+  // Volume confirmation
+  if(avgVol > 0){
+    const volRatio = last.volume/avgVol;
+    if(volRatio >= 1.5 && score > 0){
+      score += 1;
+      factors.push({label:'વોલ્યુમ સરેરાશ કરતાં ઘણું વધુ (પુષ્ટિ)', val:'+1', dir:'pos'});
+    } else if(volRatio >= 1.5 && score < 0){
+      score -= 1;
+      factors.push({label:'વોલ્યુમ સરેરાશ કરતાં ઘણું વધુ (પુષ્ટિ)', val:'-1', dir:'neg'});
+    } else if(volRatio < 0.7){
+      factors.push({label:'વોલ્યુમ ઓછું — સંકેત નબળો હોઈ શકે', val:'0', dir:'flat'});
+    } else {
+      factors.push({label:'વોલ્યુમ સામાન્ય', val:'0', dir:'flat'});
+    }
+  }
+
+  // MA trend
+  if(ma5 && ma20){
+    if(ma5 > ma20){
+      score += 1;
+      factors.push({label:'MA5 > MA20 — ટૂંકી મુદતનો ટ્રેન્ડ તેજીનો', val:'+1', dir:'pos'});
+    } else {
+      score -= 1;
+      factors.push({label:'MA5 < MA20 — ટૂંકી મુદતનો ટ્રેન્ડ મંદીનો', val:'-1', dir:'neg'});
+    }
+  }
+  if(ma20 && ma50){
+    if(ma20 > ma50){
+      score += 0.5;
+      factors.push({label:'MA20 > MA50 — મોટો ટ્રેન્ડ તેજીનો', val:'+0.5', dir:'pos'});
+    } else {
+      score -= 0.5;
+      factors.push({label:'MA20 < MA50 — મોટો ટ્રેન્ડ મંદીનો', val:'-0.5', dir:'neg'});
+    }
+  }
+
+  // RSI
+  if(rsi !== null){
+    if(rsi > 70){
+      score -= 0.5;
+      factors.push({label:'RSI ' + fmt(rsi,0) + ' — ઓવરબોટ, રિવર્સલનું જોખમ', val:'-0.5', dir:'neg'});
+    } else if(rsi < 30){
+      score += 0.5;
+      factors.push({label:'RSI ' + fmt(rsi,0) + ' — ઓવરસોલ્ડ, બાઉન્સની શક્યતા', val:'+0.5', dir:'pos'});
+    } else {
+      factors.push({label:'RSI ' + fmt(rsi,0) + ' — સામાન્ય રેન્જમાં', val:'0', dir:'flat'});
+    }
+  }
+
+  const statsObj = {resistance, support, ma5, ma20, ma50, rsi, avgVol, last};
+  renderVerdict(score, factors, statsObj);
+  renderExplanation(score, statsObj, data);
+  renderLevels(statsObj);
+  drawChart(data, resistance, support);
+}
+
+function renderLevels(s){
+  const grid = document.getElementById('levelsGrid');
+  const breakoutWatch = s.resistance;
+  const breakoutVol = s.avgVol*1.5;
+  const stopRef = s.support*0.98; // slightly below support
+  const target5 = s.last.close*1.05;
+  const target10 = s.last.close*1.10;
+  const breakdownWatch = s.support;
+
+  grid.innerHTML = `
+    <div class="stat"><span class="k">Breakout watch price (ઉપર)</span><span class="v">${fmt(breakoutWatch)}</span></div>
+    <div class="stat"><span class="k">જરૂરી વોલ્યુમ (breakout day)</span><span class="v">${fmt(breakoutVol,0)}</span></div>
+    <div class="stat"><span class="k">Target 5%</span><span class="v">${fmt(target5)}</span></div>
+    <div class="stat"><span class="k">Target 10%</span><span class="v">${fmt(target10)}</span></div>
+    <div class="stat"><span class="k">Stop-loss સંદર્ભ (સપોર્ટની નીચે)</span><span class="v">${fmt(stopRef)}</span></div>
+    <div class="stat"><span class="k">Breakdown watch price (નીચે)</span><span class="v">${fmt(breakdownWatch)}</span></div>
+  `;
+}
+
+function renderExplanation(score, s, data){
+  const el = document.getElementById('explainText');
+  const price = fmt(s.last.close);
+  const res = fmt(s.resistance);
+  const sup = fmt(s.support);
+  const upsidePct = ((s.resistance - s.last.close)/s.last.close*100);
+  const downsidePct = ((s.last.close - s.support)/s.last.close*100);
+  const nearRes = s.last.close >= s.resistance*0.98;
+  const nearSup = s.last.close <= s.support*1.02;
+  const totalDays = data.length;
+
+  // highest/lowest close across full uploaded history (not just 20-day window)
+  const allCloses = data.map(r=>r.close);
+  const periodHigh = Math.max(...allCloses);
+  const periodLow = Math.min(...allCloses);
+  const fromHighPct = ((periodHigh - s.last.close)/periodHigh*100);
+
+  // last 3 days momentum
+  const recent = data.slice(-3).map(r=>fmt(r.close));
+  const momentumStr = recent.length>=2 ? recent.join(' → ') : null;
+
+  let bullets = [];
+
+  // 1. Range / consolidation
+  bullets.push(`ભાવ: ${price}, છેલ્લા ${Math.min(20,totalDays-1)} દિવસથી <b>${sup}-${res}ની રેન્જમાં</b> ${nearRes?'રેઝિસ્ટન્સની નજીક':nearSup?'સપોર્ટની નજીક':'consolidate'} થઈ રહ્યો છે.`);
+
+  // 2. Distance from period high
+  if(fromHighPct > 1){
+    bullets.push(`તમારા ડેટામાં જોવા મળતી ટોચ (${fmt(periodHigh)}) થી હજુ ${fmt(fromHighPct,1)}% નીચે — મોટો ટ્રેન્ડ હજુ નબળો/સાઈડવેઝ ગણાય.`);
+  }
+
+  // 3. Recent momentum
+  if(momentumStr){
+    bullets.push(`છેલ્લા થોડા દિવસનો ભાવ: ${momentumStr} — ${nearRes?`resistance zone (~${res}) હજુ તૂટ્યું નથી.`:nearSup?`support zone (~${sup}) નજીક છે.`:'રેન્જની અંદર જ હલચલ છે.'}`);
+  }
+
+  // 4. What's needed for breakout / breakdown with % targets
+  const upTarget5 = s.last.close*1.05, upTarget10 = s.last.close*1.10;
+  const minVolNeeded = s.avgVol*1.5;
+  bullets.push(`<b>5-10% ટાર્ગેટ માટે વિચારવા જેવું:</b> જો ${res} ઉપર <b>સારા વોલ્યુમ સાથે</b> બંધ થાય, તો ${fmt(upTarget5)}-${fmt(upTarget10)} (5-10%) સુધીની ચાલ શક્ય બને — પણ એ "જો" પર છે, ગેરંટી નહીં.`);
+  bullets.push(`<b>વોલ્યુમ કન્ફર્મેશન:</b> સરેરાશ વોલ્યુમ ${fmt(s.avgVol,0)} છે, એટલે breakout day એ ઓછામાં ઓછું <b>~${fmt(minVolNeeded,0)}</b> (1.5×) વોલ્યુમ જોઈએ, તો જ confirm ગણાય — છેલ્લા દિવસનું વોલ્યુમ ${fmt(s.last.volume,0)} હતું.`);
+
+  // 5. Risk of buying inside range
+  bullets.push(`અત્યારે ભાવ રેન્જની અંદર છે — resistance તૂટ્યા વગર ખરીદવું એટલે <b>range-bound risk</b> (ફરી ${sup} તરફ પણ જઈ શકે).`);
+
+  // 6. Duration note
+  bullets.push(`આ ${totalDays} દિવસના ડેટામાં આ પેટર્ન ${totalDays>=60?'ઘણા સમયથી':'થોડા સમયથી'} ચાલે છે — એટલે ઝડપી 5-10% move માટે <b>breakout confirmation</b> જોવું વધુ સલામત ગણાય, ફક્ત રેન્જની અંદર ખરીદવા કરતાં.`);
+
+  // 7. MA / RSI context
+  let taBits = [];
+  if(s.ma5 && s.ma20){
+    taBits.push(s.ma5 > s.ma20 ? 'ટૂંકી મુદતનો ટ્રેન્ડ (MA5>MA20) તેજી તરફ' : 'ટૂંકી મુદતનો ટ્રેન્ડ (MA5<MA20) મંદી તરફ');
+  }
+  if(s.rsi !== null){
+    if(s.rsi > 70) taBits.push(`RSI ${fmt(s.rsi,0)} ઓવરબોટ ઝોનમાં`);
+    else if(s.rsi < 30) taBits.push(`RSI ${fmt(s.rsi,0)} ઓવરસોલ્ડ ઝોનમાં`);
+    else taBits.push(`RSI ${fmt(s.rsi,0)} સામાન્ય રેન્જમાં`);
+  }
+  if(taBits.length) bullets.push(taBits.join(', ') + '.');
+
+  // Verdict line
+  let verdictLine;
+  if(score >= 1) verdictLine = `<b>ટૂલ પ્રમાણે:</b> તેજી તરફેણ (સ્કોર +${fmt(score,1)}) — resistance તૂટે ત્યાં સુધી "બ્રેક-અપ ની રાહ" ગણી શકાય.`;
+  else if(score <= -1) verdictLine = `<b>ટૂલ પ્રમાણે:</b> મંદી તરફેણ (સ્કોર ${fmt(score,1)}) — support તૂટે ત્યાં સુધી "બ્રેક-ડાઉન ની રાહ" ગણી શકાય.`;
+  else verdictLine = `<b>ટૂલ પ્રમાણે:</b> આ અત્યારે "તટસ્થ/રાહ જુઓ" ઝોનમાં છે (સ્કોર ${score>0?'+':''}${fmt(score,1)}) — breakout confirmation હજુ મળ્યું નથી.`;
+  bullets.push(verdictLine + ` resistance તૂટે ને વોલ્યુમ વધે એ પછીનો entry વધુ સ્પષ્ટ સંકેત આપશે — પણ final નિર્ણય, risk-tolerance, ને stop-loss તમારે નક્કી કરવાના રહેશે.`);
+
+  el.innerHTML = '<ul style="margin:0; padding-inline-start:20px;">' + bullets.map(b=>`<li style="margin-bottom:9px;">${b}</li>`).join('') + '</ul>';
+}
+
+function renderVerdict(score, factors, stats){
+  const box = document.getElementById('verdictBox');
+  const headline = document.getElementById('verdictHeadline');
+  const confidence = document.getElementById('verdictConfidence');
+  const factorsEl = document.getElementById('verdictFactors');
+  const statsGrid = document.getElementById('statsGrid');
+
+  box.classList.remove('bull','bear','neutral');
+  let confLabel;
+  const absScore = Math.abs(score);
+  if(absScore >= 2.5) confLabel = 'ઉંચી';
+  else if(absScore >= 1) confLabel = 'મધ્યમ';
+  else confLabel = 'નીચી';
+
+  if(score >= 1){
+    box.classList.add('bull');
+    headline.textContent = 'બ્રેક-અપ (તેજી) ની શક્યતા';
+  } else if(score <= -1){
+    box.classList.add('bear');
+    headline.textContent = 'બ્રેક-ડાઉન (મંદી) ની શક્યતા';
+  } else {
+    box.classList.add('neutral');
+    headline.textContent = 'તટસ્થ — સ્પષ્ટ સંકેત નથી';
+  }
+  confidence.textContent = 'સંકેતની મજબૂતાઈ: ' + confLabel + ' (સ્કોર ' + (score>0?'+':'') + fmt(score,1) + ')';
+
+  factorsEl.innerHTML = factors.map(f=>
+    `<div class="factor"><span>${f.label}</span><span class="val ${f.dir}">${f.val}</span></div>`
+  ).join('');
+
+  const s = stats;
+  statsGrid.innerHTML = `
+    <div class="stat"><span class="k">છેલ્લો ભાવ</span><span class="v">${fmt(s.last.close)}</span></div>
+    <div class="stat"><span class="k">છેલ્લું વોલ્યુમ</span><span class="v">${fmt(s.last.volume,0)}</span></div>
+    <div class="stat"><span class="k">રેઝિસ્ટન્સ</span><span class="v">${fmt(s.resistance)}</span></div>
+    <div class="stat"><span class="k">સપોર્ટ</span><span class="v">${fmt(s.support)}</span></div>
+    <div class="stat"><span class="k">RSI (14)</span><span class="v">${s.rsi!==null?fmt(s.rsi,0):'—'}</span></div>
+    <div class="stat"><span class="k">MA5</span><span class="v">${s.ma5?fmt(s.ma5):'—'}</span></div>
+    <div class="stat"><span class="k">MA20</span><span class="v">${s.ma20?fmt(s.ma20):'—'}</span></div>
+    <div class="stat"><span class="k">MA50</span><span class="v">${s.ma50?fmt(s.ma50):'—'}</span></div>
+    <div class="stat"><span class="k">સરેરાશ વોલ્યુમ</span><span class="v">${fmt(s.avgVol,0)}</span></div>
+    <div class="stat"><span class="k">બ્રેકઆઉટ માટે જરૂરી વોલ્યુમ (1.5×)</span><span class="v">${fmt(s.avgVol*1.5,0)}</span></div>
+  `;
+}
+
+function drawChart(data, resistance, support){
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || canvas.parentElement.clientWidth;
+  const cssHeight = 260;
+  canvas.width = cssWidth*dpr;
+  canvas.height = cssHeight*dpr;
+  canvas.style.height = cssHeight+'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cssWidth,cssHeight);
+
+  const padL = 46, padR = 10, padT = 12, padB = 20;
+  const plotW = cssWidth - padL - padR;
+  const plotH = cssHeight - padT - padB;
+
+  const closes = data.map(r=>r.close);
+  const highs = data.map(r=>r.high);
+  const lows = data.map(r=>r.low);
+  let minV = Math.min(...lows, support);
+  let maxV = Math.max(...highs, resistance);
+  const pad = (maxV-minV)*0.08 || 1;
+  minV -= pad; maxV += pad;
+
+  const n = data.length;
+  const slot = plotW/n;
+  const candleW = Math.max(2, Math.min(10, slot*0.6));
+
+  function yFor(v){ return padT + plotH*(1-(v-minV)/(maxV-minV)); }
+  function xFor(i){ return padL + slot*i + slot/2; }
+
+  // grid + axis labels
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.fillStyle = '#8B93A1';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'right';
+  for(let g=0; g<=4; g++){
+    const v = minV + (maxV-minV)*g/4;
+    const y = yFor(v);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(cssWidth-padR, y); ctx.stroke();
+    ctx.fillText(fmt(v,1), padL-6, y+3);
+  }
+
+  // support / resistance dashed lines
+  ctx.setLineDash([4,4]);
+  ctx.strokeStyle = '#D9A05B';
+  ctx.lineWidth = 1;
+  [resistance, support].forEach(v=>{
+    const y = yFor(v);
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(cssWidth-padR,y); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // candles
+  data.forEach((r,i)=>{
+    const x = xFor(i);
+    const up = r.close >= r.open;
+    ctx.strokeStyle = up ? '#4FAF7C' : '#D9695F';
+    ctx.fillStyle = up ? '#4FAF7C' : '#D9695F';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, yFor(r.high));
+    ctx.lineTo(x, yFor(r.low));
+    ctx.stroke();
+    const yO = yFor(r.open), yC = yFor(r.close);
+    const top = Math.min(yO,yC), h = Math.max(1, Math.abs(yC-yO));
+    ctx.fillRect(x-candleW/2, top, candleW, h);
+  });
+
+  // MA lines
+  function drawMA(period, color){
+    ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.beginPath();
+    let started = false;
+    for(let i=0;i<n;i++){
+      const v = sma(closes, period, i);
+      if(v === null) continue;
+      const x = xFor(i), y = yFor(v);
+      if(!started){ ctx.moveTo(x,y); started = true; } else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+  drawMA(5, '#4FA8A0');
+  drawMA(20, '#8B93A1');
+
+  // x labels (first, mid, last)
+  ctx.fillStyle = '#8B93A1';
+  ctx.textAlign = 'center';
+  [0, Math.floor(n/2), n-1].forEach(i=>{
+    if(data[i]) ctx.fillText(data[i].date.slice(5), xFor(i), cssHeight-4);
+  });
+}
+
+function renderAll(){
+  renderSymbolSelect();
+  renderTable();
+  analyze();
+}
+
+renderAll();
+window.addEventListener('resize', ()=>{
+  const data = store.symbols[store.active] || [];
+  if(data.length>=2){
+    const closes = data.map(r=>r.close);
+    const highs = data.map(r=>r.high);
+    const lows = data.map(r=>r.low);
+    const n = data.length;
+    const lookback = Math.min(20, n-1);
+    const windowHighs = highs.slice(Math.max(0,n-1-lookback), n-1);
+    const windowLows = lows.slice(Math.max(0,n-1-lookback), n-1);
+    const resistance = windowHighs.length ? Math.max(...windowHighs) : data[n-1].high;
+    const support = windowLows.length ? Math.min(...windowLows) : data[n-1].low;
+    drawChart(data, resistance, support);
+  }
+});
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
