@@ -184,6 +184,29 @@
   </section>
 
   <section class="panel">
+    <h2>સેક્ટર સંકેત (9:15 vs 10:30)</h2>
+    <span class="field-label">NSE.com ના "Live Market Indices" પેજ પરથી CSV ડાઉનલોડ કરીને બે વાર અપલોડ કરો</span>
+
+    <div class="row" style="margin-top:8px;">
+      <div style="flex:1; min-width:150px;">
+        <span class="field-label">9:15 નું CSV</span>
+        <input type="file" id="sectorMorningInput" accept=".csv,text/csv">
+      </div>
+      <div style="flex:1; min-width:150px;">
+        <span class="field-label">10:30 નું CSV</span>
+        <input type="file" id="sectorMiddayInput" accept=".csv,text/csv">
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <button id="clearSectorBtn" class="danger">આજનો ડેટા સાફ કરો (નવો દિવસ)</button>
+    </div>
+
+    <div id="sectorResultsWrap" style="margin-top:12px;"></div>
+    <p class="hint" style="margin-top:10px;">"મજબૂત" = 9:15 થી 10:30 સુધીમાં gain ટકી રહ્યો/વધ્યો. "નબળો" = gain ઘટવા લાગ્યો. ફક્ત reference છે, ગેરંટી નથી.</p>
+  </section>
+
+  <section class="panel">
     <h2>CSV ફાઈલ અપલોડ કરો</h2>
     <span class="field-label">NSE.com પરથી ડાઉનલોડ કરેલી ફાઈલ સીધી અપલોડ કરો — શેરનું નામ ફાઈલ પરથી ઓટોમેટિક ઉમેરાશે</span>
     <div class="row">
@@ -345,17 +368,34 @@ const csvFileInput = document.getElementById('csvFileInput');
 const csvHint = document.getElementById('csvHint');
 const MONTH_MAP = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
 
-function parseCSVLine(line){
-  const result = [];
-  let cur = '', inQuotes = false;
-  for(let i=0;i<line.length;i++){
-    const ch = line[i];
-    if(ch === '"'){ inQuotes = !inQuotes; continue; }
-    if(ch === ',' && !inQuotes){ result.push(cur); cur=''; continue; }
-    cur += ch;
+// Robust CSV tokenizer: parses the WHOLE text at once, respecting quotes —
+// including quoted fields that contain embedded newlines or commas (NSE headers do this).
+function parseCSVText(text){
+  text = text.replace(/^\uFEFF/,'');
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(inQuotes){
+      if(ch === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += ch;
+      }
+    } else {
+      if(ch === '"'){ inQuotes = true; }
+      else if(ch === ','){ row.push(field); field = ''; }
+      else if(ch === '\r'){ /* ignore */ }
+      else if(ch === '\n'){ row.push(field); field=''; rows.push(row); row=[]; }
+      else field += ch;
+    }
   }
-  result.push(cur);
-  return result.map(s=>s.trim());
+  if(field.length>0 || row.length>0){ row.push(field); rows.push(row); }
+  // drop fully-empty rows, trim every cell
+  return rows
+    .map(r=>r.map(c=>c.trim()))
+    .filter(r=>r.some(c=>c.length>0));
 }
 
 function cleanNum(s){
@@ -377,10 +417,10 @@ function toISODate(dateStr){
 }
 
 function parseCSVUpload(text){
-  const lines = text.replace(/^\uFEFF/,'').split('\n').map(l=>l.trim()).filter(l=>l.length>0);
-  if(lines.length === 0) return [];
+  const allRows = parseCSVText(text);
+  if(allRows.length === 0) return [];
 
-  const headerCells = parseCSVLine(lines[0]).map(c=>c.toUpperCase());
+  const headerCells = allRows[0].map(c=>c.toUpperCase().replace(/\s+/g,' ').trim());
   const idxDate = headerCells.indexOf('DATE');
   const idxOpen = headerCells.indexOf('OPEN');
   const idxHigh = headerCells.indexOf('HIGH');
@@ -392,8 +432,8 @@ function parseCSVUpload(text){
 
   if(idxDate>=0 && idxOpen>=0 && idxHigh>=0 && idxLow>=0 && idxClose>=0){
     // Header-based parsing (e.g. NSE "Quote-Equity" export, or any labeled CSV)
-    for(let i=1;i<lines.length;i++){
-      const cells = parseCSVLine(lines[i]);
+    for(let i=1;i<allRows.length;i++){
+      const cells = allRows[i];
       if(cells.length <= Math.max(idxDate,idxOpen,idxHigh,idxLow,idxClose)) continue;
       const rec = {
         date: toISODate(cells[idxDate]),
@@ -409,10 +449,9 @@ function parseCSVUpload(text){
     }
   } else {
     // No recognizable header — treat as plain date,open,high,low,close,volume rows
-    // (skip first line only if it doesn't look numeric)
-    const startIdx = /[a-zA-Z]/.test(lines[0].split(/[,\t]/)[1]||'') ? 1 : 0;
-    for(let i=startIdx;i<lines.length;i++){
-      const parts = parseCSVLine(lines[i]);
+    const startIdx = /[a-zA-Z]/.test((allRows[0][1]||'')) ? 1 : 0;
+    for(let i=startIdx;i<allRows.length;i++){
+      const parts = allRows[i];
       if(parts.length < 5) continue;
       const rec = {
         date: toISODate(parts[0]),
@@ -460,6 +499,118 @@ csvFileInput.addEventListener('change', (e)=>{
   reader.onerror = ()=>{ alert('ફાઈલ વાંચવામાં ભૂલ થઈ.'); csvFileInput.value=''; };
   reader.readAsText(file);
 });
+
+// ---- Sector momentum tracker (9:15 vs 10:30) ----
+const SECTOR_KEY = 'sectorTrackerV1';
+function loadSectorStore(){
+  try{
+    const raw = localStorage.getItem(SECTOR_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){ return {}; }
+}
+function saveSectorStore(){ localStorage.setItem(SECTOR_KEY, JSON.stringify(sectorStore)); }
+let sectorStore = loadSectorStore();
+
+function parseSectorCSV(text){
+  const allRows = parseCSVText(text);
+  if(allRows.length === 0) return [];
+  const header = allRows[0].map(c=>c.toUpperCase().replace(/\s+/g,''));
+  let nameIdx = header.findIndex(h=>h.includes('INDEX')||h.includes('SYMBOL')||h.includes('SECTOR'));
+  let pctIdx = header.findIndex(h=>h.includes('%CHNG')||h.includes('%CHANGE')||h.includes('PCHANGE')||h.includes('CHNG(%)')||h.includes('CHANGE(%)'));
+  if(pctIdx<0) pctIdx = header.findIndex(h=>h==='CHNG'||h==='CHANGE');
+  // prefer CURRENT/LTP over CLOSE (NSE's "INDICATIVE CLOSE" is often blank/"-")
+  let ltpIdx = header.findIndex(h=>h.includes('LTP')||h.includes('CURRENT'));
+  if(ltpIdx<0) ltpIdx = header.findIndex(h=>h.includes('CLOSE'));
+  if(nameIdx<0 || pctIdx<0) return [];
+
+  const rows = [];
+  for(let i=1;i<allRows.length;i++){
+    const cells = allRows[i];
+    if(cells.length <= Math.max(nameIdx,pctIdx)) continue;
+    const name = cells[nameIdx].trim();
+    const pct = cleanNum(cells[pctIdx]);
+    const ltp = ltpIdx>=0 ? cleanNum(cells[ltpIdx]) : null;
+    if(!name || isNaN(pct)) continue;
+    rows.push({name, pct, ltp});
+  }
+  return rows;
+}
+
+function handleSectorUpload(file, slot){
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    const rows = parseSectorCSV(ev.target.result);
+    if(rows.length === 0){
+      alert('ડેટા સમજાયો નહીં — CSV માં INDEX/SYMBOL અને %CHNG કોલમ જોઈએ.');
+      return;
+    }
+    const map = {};
+    rows.forEach(r=>{ map[r.name] = r; });
+    sectorStore[slot] = map;
+    saveSectorStore();
+    renderSectorComparison();
+  };
+  reader.onerror = ()=>{ alert('ફાઈલ વાંચવામાં ભૂલ થઈ.'); };
+  reader.readAsText(file);
+}
+
+const sectorMorningInput = document.getElementById('sectorMorningInput');
+const sectorMiddayInput = document.getElementById('sectorMiddayInput');
+const clearSectorBtn = document.getElementById('clearSectorBtn');
+
+sectorMorningInput.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(f) handleSectorUpload(f, 'morning');
+  e.target.value = '';
+});
+sectorMiddayInput.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(f) handleSectorUpload(f, 'midday');
+  e.target.value = '';
+});
+clearSectorBtn.addEventListener('click', ()=>{
+  if(!confirm('આજનો સેક્ટર ડેટા સાફ કરવો છે?')) return;
+  sectorStore = {};
+  saveSectorStore();
+  renderSectorComparison();
+});
+
+function renderSectorComparison(){
+  const wrap = document.getElementById('sectorResultsWrap');
+  const morning = sectorStore.morning, midday = sectorStore.midday;
+  if(!morning && !midday){ wrap.innerHTML = ''; return; }
+
+  const names = new Set([
+    ...(morning ? Object.keys(morning) : []),
+    ...(midday ? Object.keys(midday) : [])
+  ]);
+
+  const rows = Array.from(names).map(name=>{
+    const m = morning ? morning[name] : null;
+    const d = midday ? midday[name] : null;
+    let status = '—', statusClass = 'flat';
+    if(m && d){
+      if(d.pct >= m.pct){ status = 'મજબૂત (ટકેલો/વધ્યો)'; statusClass = 'pos'; }
+      else { status = 'નબળો (ઘટ્યો)'; statusClass = 'neg'; }
+    }
+    return { name, mPct: m?m.pct:null, dPct: d?d.pct:null, status, statusClass };
+  });
+
+  rows.sort((a,b)=> (b.dPct ?? b.mPct ?? -999) - (a.dPct ?? a.mPct ?? -999));
+
+  let html = '<table><thead><tr><th style="text-align:left;">સેક્ટર</th><th>9:15 %</th><th>10:30 %</th><th style="text-align:left;">સ્થિતિ</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    html += `<tr>
+      <td style="text-align:left; font-family:'Noto Sans Gujarati',sans-serif;">${r.name}</td>
+      <td class="${r.mPct>=0?'val pos':'val neg'}">${r.mPct!==null?fmt(r.mPct,2):'—'}</td>
+      <td class="${r.dPct>=0?'val pos':'val neg'}">${r.dPct!==null?fmt(r.dPct,2):'—'}</td>
+      <td style="text-align:left; font-family:'Noto Sans Gujarati',sans-serif;" class="val ${r.statusClass}">${r.status}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+renderSectorComparison();
 
 function deleteRow(idx){
   store.symbols[store.active].splice(idx,1);
